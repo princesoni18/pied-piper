@@ -39,6 +39,12 @@ def fetch_images(scenes: list[dict], out_dir: Path, width: int, height: int, see
                 ok = _pexels(prompt, dest, width > height)
         except Exception:
             ok = False
+        if not ok and provider == "pollinations":
+            # Pollinations is rate-limited and flaky; fall back to Gemini image gen.
+            try:
+                ok = _gemini(prompt + STYLE_SUFFIX, dest, width, height)
+            except Exception:
+                ok = False
         result.append(dest if ok else None)
     return result
 
@@ -63,11 +69,14 @@ def _cover(img: Image.Image, w: int, h: int) -> Image.Image:
 def _pollinations(prompt: str, dest: Path, w: int, h: int, seed: int) -> bool:
     url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt)
     params = {"width": w, "height": h, "seed": seed, "nologo": "true", "model": "flux"}
-    for attempt in range(3):
-        r = requests.get(url, params=params, timeout=120)
-        if r.ok and r.headers.get("content-type", "").startswith("image"):
-            return _save_cover(r.content, dest, w, h)
-        time.sleep(5 * (attempt + 1))
+    for attempt in range(4):
+        try:
+            r = requests.get(url, params=params, timeout=120)
+            if r.ok and r.headers.get("content-type", "").startswith("image"):
+                return _save_cover(r.content, dest, w, h)
+        except requests.RequestException:
+            pass
+        time.sleep(8 * (attempt + 1))
     return False
 
 

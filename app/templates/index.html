@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StoryForge</title>
+<style>
+:root{--bg:#0f1115;--panel:#181b22;--line:#272b35;--text:#e8eaf0;--mut:#8b91a1;--acc:#7c5cff;--ok:#34c38f;--warn:#f1b44c;--bad:#f46a6a}
+@media (prefers-color-scheme: light){:root{--bg:#f5f6f8;--panel:#fff;--line:#e3e5ea;--text:#1b1e26;--mut:#68707f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:14px 24px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5;flex-wrap:wrap}
+h1{font-size:18px;margin:0}nav{display:flex;gap:4px}nav button{background:none;border:0;color:var(--mut);padding:6px 12px;border-radius:8px;cursor:pointer;font:inherit}
+nav button.on{background:var(--panel);color:var(--text)}main{padding:24px;max-width:1300px;margin:auto}
+.btn{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit}
+.btn.g{background:var(--panel);color:var(--text);border:1px solid var(--line)}.btn.d{background:var(--bad)}.btn.s{padding:4px 9px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:default}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card .n{font-size:26px;font-weight:700}.card .l{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}th{color:var(--mut);font-size:12px;font-weight:500}
+tr:last-child td{border:0}tr.row{cursor:pointer}tr.row:hover{background:rgba(124,92,255,.08)}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;background:var(--line)}
+.pill.rendered,.pill.approved{background:rgba(124,92,255,.2);color:#a995ff}.pill.exported,.pill.scheduled,.pill.published{background:rgba(52,195,143,.18);color:var(--ok)}
+.pill.failed{background:rgba(244,106,106,.2);color:var(--bad)}.pill.busy{background:rgba(241,180,76,.2);color:var(--warn)}
+.bar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}.bar .sp{flex:1}
+select,input,textarea{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit}
+textarea{width:100%;font-family:ui-monospace,monospace;font-size:13px}
+.mut{color:var(--mut)}.warn{background:rgba(241,180,76,.12);border:1px solid rgba(241,180,76,.4);border-radius:10px;padding:10px 14px;margin-bottom:10px}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:0;width:min(980px,96vw);max-height:92vh}
+dialog::backdrop{background:rgba(0,0,0,.6)}.dh{display:flex;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+.db{padding:18px;display:grid;grid-template-columns:280px 1fr;gap:20px;overflow:auto;max-height:76vh}
+@media(max-width:760px){.db{grid-template-columns:1fr}}
+video{width:100%;border-radius:10px;background:#000;max-height:60vh}
+.scene{display:flex;gap:8px;margin-bottom:6px}.scene span{color:var(--mut);width:24px;flex:none;padding-top:8px}
+pre{background:var(--bg);padding:10px;border-radius:8px;max-height:200px;overflow:auto;font-size:12px;white-space:pre-wrap}
+.cal{display:grid;grid-template-columns:70px repeat(7,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.cal>div{background:var(--panel);padding:6px;min-height:40px;font-size:12px}.cal .h{color:var(--mut);text-align:center}
+.chip{display:block;border-radius:6px;padding:2px 6px;margin-bottom:3px;background:var(--line);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip.short{border-left:3px solid var(--acc)}.chip.long{border-left:3px solid var(--warn)}
+.tag{font-size:11px;color:var(--mut)}
+</style>
+</head>
+<body>
+<header>
+  <h1>StoryForge</h1>
+  <nav id="nav"></nav>
+  <span style="flex:1"></span>
+  <span id="hdr" class="mut"></span>
+</header>
+<main id="main"></main>
+
+<dialog id="dlg"><div class="dh"><b id="dt"></b><button class="btn g s" onclick="dlg.close()">Close</button></div><div class="db" id="dbody"></div></dialog>
+
+<script>
+const $=s=>document.querySelector(s), api=async(u,m='GET',b)=>{const r=await fetch(u,{method:m,headers:{'content-type':'application/json'},body:b?JSON.stringify(b):undefined});
+  if(!r.ok){let t=await r.text();try{t=JSON.parse(t).detail||t}catch{}alert(t);throw new Error(t)}return r.json()};
+const esc=s=>(s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const tabs=['Overview','Queue','Calendar','Footage','Settings'];let tab=localStorage.tab||'Overview',vids=[],st={},openId=null;
+$('#nav').innerHTML=tabs.map(t=>`<button data-t="${t}">${t}</button>`).join('');
+$('#nav').onclick=e=>{if(e.target.dataset.t){tab=e.target.dataset.t;localStorage.tab=tab;render()}};
+const local=iso=>iso?new Date(iso).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'-';
+const pill=v=>v.busy?'<span class="pill busy">working…</span>':`<span class="pill ${v.status}">${v.status}</span>`;
+
+async function load(){[vids,st]=await Promise.all([api('/api/videos'),api('/api/status')]);render();if(openId&&dlg.open)showVideo(openId,true)}
+function render(){
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+  $('#hdr').textContent=`${st.total||0} videos · autopilot ${st.autopilot?'on':'off'}`;
+  ({Overview:overview,Queue:queue,Calendar:calendar,Footage:footage,Settings:settings})[tab]();
+}
+function checklist(){
+  const items=[[st.gemini_key,'Gemini API key','Add GEMINI_API_KEY to .env (free at aistudio.google.com/apikey)'],
+   [st.gameplay_files?.length,'Gameplay footage','Drop your own recordings into assets/gameplay/'],
+   ...(st.output_mode==='youtube'?[[st.youtube_client,'YouTube client_secret.json','Put it in data/secrets/ (see README)'],
+   [st.youtube_authorized,'YouTube connected',st.youtube_client?'<a href="/auth/youtube">Connect YouTube</a>':'Needs client_secret.json first']]:[])];
+  const todo=items.filter(i=>!i[0]);if(!todo.length)return'';
+  return `<div class="warn"><b>Setup left</b><br>`+todo.map(i=>`• <b>${i[1]}</b>: ${i[2]}`).join('<br>')+`</div>`;
+}
+function overview(){
+  const c=st.counts||{},t=st.weekly_target||{};
+  const card=(n,l)=>`<div class="card"><div class="n">${n??0}</div><div class="l">${l}</div></div>`;
+  const next=vids.filter(v=>v.slot_at&&['exported','scheduled','approved','rendered'].includes(v.status)).slice(0,6);
+  $('#main').innerHTML=checklist()+(st.last_error?`<div class="warn bad">Last autopilot error: ${esc(st.last_error)}</div>`:'')+`
+  <div class="grid">${card(t.short,'Shorts / week')}${card(t.long,'Long / week')}${card(c.idea,'Ideas')}${card((c.scripted||0)+(c.voiced||0),'In production')}
+  ${card(c.rendered,'Awaiting review')}${card((c.approved||0)+(c.scheduled||0)+(c.exported||0),st.output_mode==='local'?'Exported':'Scheduled')}${card(c.published,'Published')}${card(c.failed,'Failed')}</div>
+  ${st.output_mode==='local'?`<p class="mut">Local mode: Approve saves video, thumbnail and metadata.txt to <code>${esc(st.export_folder)}</code>. Upload them to YouTube yourself.</p>`:''}<div class="bar"><b>Quick actions</b><span class="sp"></span>
+   <button class="btn" onclick="api('/api/plan','POST').then(r=>{alert('Created '+r.created+' queue items');load()})">Plan open slots</button>
+   <button class="btn g" onclick="api('/api/tick','POST').then(()=>alert('Autopilot pass started'))">Run autopilot now</button></div>
+  <h3>Next up</h3>`+table(next);
+}
+function table(rows){
+  if(!rows.length)return'<p class="mut">Nothing here yet.</p>';
+  return `<table><tr><th>#</th><th>Type</th><th>Topic / title</th><th>Status</th><th>Publish slot</th><th></th></tr>`+rows.map(v=>`
+  <tr class="row" onclick="showVideo(${v.id})"><td>${v.id}</td><td>${v.kind==='short'?'Short':'Long'}<div class="tag">${esc(v.niche)}</div></td>
+  <td>${esc(v.title||v.topic)}${v.error?`<div class="tag bad">${esc(v.failed_step)}: ${esc(v.error).slice(0,90)}</div>`:''}</td>
+  <td>${pill(v)}</td><td>${local(v.slot_at)}</td><td>${rowAction(v)}</td></tr>`).join('')+'</table>';
+}
+function rowAction(v){
+  if(v.busy)return'';
+  const b=(l,u,cls='')=>`<button class="btn s ${cls}" onclick="event.stopPropagation();act('${u}')">${l}</button>`;
+  if(v.status==='idea')return b('Generate',`/api/videos/${v.id}/run`);
+  if(v.status==='failed')return b('Retry',`/api/videos/${v.id}/run`);
+  if(v.status==='rendered')return b(st.output_mode==='local'?'Approve & export':'Approve',`/api/videos/${v.id}/approve`);
+  if(v.status==='approved')return b(st.output_mode==='local'?'Export':'Upload',`/api/videos/${v.id}/upload`);
+  return'';
+}
+async function act(u){await api(u,'POST');setTimeout(load,400)}
+function queue(){
+  const f=window.qf||'all';
+  const rows=vids.filter(v=>f==='all'||v.status===f||(f==='short'||f==='long')&&v.kind===f);
+  $('#main').innerHTML=`<div class="bar">
+   <select onchange="qf=this.value;queue()">${['all','idea','scripted','voiced','rendered','approved','exported','scheduled','published','failed','short','long'].map(o=>`<option ${o===f?'selected':''}>${o}</option>`).join('')}</select>
+   <span class="sp"></span>
+   <button class="btn g" onclick="newVideo()">+ New video</button>
+   <button class="btn" onclick="runAll()">Generate all ideas</button></div>`+table(rows);
+}
+async function runAll(){const ids=vids.filter(v=>v.status==='idea'&&!v.busy).slice(0,5);for(const v of ids)await api(`/api/videos/${v.id}/run`,'POST');alert(`Started ${ids.length} (5 at a time to stay within free API limits)`);setTimeout(load,500)}
+async function newVideo(){
+  const kind=prompt('Type: short or long','short');if(!kind)return;
+  const niche=prompt('Niche: '+Object.keys(window.niches||{true_story:1,what_if:1}).join(' / '),'true_story');if(!niche)return;
+  const topic=prompt('Topic (leave empty to let Gemini pick)','');
+  const r=await api('/api/videos','POST',{kind,niche,topic:topic||''});await load();showVideo(r.id)}
+function calendar(){
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const start=new Date();start.setHours(0,0,0,0);start.setDate(start.getDate()-((start.getDay()+6)%7));
+  const dates=days.map((_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return d});
+  const hours=[...new Set(vids.filter(v=>v.slot_at).map(v=>new Date(v.slot_at).getHours()))].sort((a,b)=>a-b);
+  let h='<p class="mut">This week (your browser time zone). Purple = Short, amber = long.</p><div class="cal"><div class="h"></div>'+dates.map((d,i)=>`<div class="h">${days[i]} ${d.getDate()}</div>`).join('');
+  for(const hr of (hours.length?hours:[9,15,18])){
+    h+=`<div class="h">${String(hr).padStart(2,'0')}:00</div>`;
+    for(const d of dates){
+      const cell=vids.filter(v=>v.slot_at&&new Date(v.slot_at).toDateString()===d.toDateString()&&new Date(v.slot_at).getHours()===hr);
+      h+='<div>'+cell.map(v=>`<span class="chip ${v.kind}" onclick="showVideo(${v.id})" title="${esc(v.title||v.topic)}">${esc(v.title||v.topic)}</span>`).join('')+'</div>';
+    }
+  }
+  $('#main').innerHTML=h+'</div>';
+}
+async function footage(){
+  const f=await api('/api/footage');
+  $('#main').innerHTML=`<p>Put <b>your own recordings or footage you hold a licence for</b> in <code>assets/gameplay/</code> (mp4/mov/mkv/webm) and music in <code>assets/music/</code>. Every video picks a random file and a random start point.</p>`+
+   (f.length?`<table><tr><th>File</th><th>Size</th></tr>${f.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.mb} MB</td></tr>`).join('')}</table>`:'<div class="warn">No footage yet. Without it Shorts fall back to AI images only.</div>');
+}
+async function settings(){
+  const c=await api('/api/config');
+  $('#main').innerHTML=`<p class="mut">config.yaml: weekly slots, niches, voices, layouts, captions. Saved changes apply on the next tick.</p>
+  <textarea id="cfg" rows="30">${esc(c.yaml)}</textarea><div class="bar" style="margin-top:10px"><button class="btn" onclick="api('/api/config','PUT',{yaml:cfg.value}).then(()=>alert('Saved'))">Save</button></div>`;
+}
+async function showVideo(id,keep){
+  openId=id;const v=await api('/api/videos/'+id);const sc=v.script?.scenes||[];
+  if(keep&&dlg.open&&document.activeElement&&dlg.contains(document.activeElement)&&['TEXTAREA','INPUT'].includes(document.activeElement.tagName))return;
+  $('#dt').textContent=`#${v.id} · ${v.kind} · ${v.niche}`;
+  $('#dbody').innerHTML=`<div>${v.has_video?`<video controls src="/api/videos/${id}/file?t=${encodeURIComponent(v.updated_at)}"></video>`:'<div class="card mut">No render yet</div>'}
+   <p>${pill(v)} <span class="mut">slot: ${local(v.slot_at)}</span></p>
+   ${v.youtube_id?`<p><a href="https://youtu.be/${v.youtube_id}" target="_blank">youtu.be/${v.youtube_id}</a></p>`:''}
+   <div class="bar">${v.busy?'':[
+     ['idea','failed'].includes(v.status)?`<button class="btn s" onclick="act('/api/videos/${id}/run')">${v.status==='failed'?'Retry':'Generate'}</button>`:'',
+     v.status==='rendered'?`<button class="btn s" onclick="act('/api/videos/${id}/approve')">Approve</button>`:'',
+     v.status==='approved'?`<button class="btn s" onclick="act('/api/videos/${id}/upload')">Upload</button>`:'',
+     v.script&&!['exported','scheduled','published'].includes(v.status)?`<button class="btn s g" onclick="act('/api/videos/${id}/rerender')">Re-render</button>`:'',
+     !['exported','scheduled','published'].includes(v.status)?`<button class="btn s g" onclick="if(confirm('Throw away the script and start over?'))act('/api/videos/${id}/regenerate')">New script</button>`:'',
+     `<button class="btn s d" onclick="if(confirm('Delete?'))api('/api/videos/${id}','DELETE').then(()=>{dlg.close();load()})">Delete</button>`].join('')}</div>
+   ${v.error?`<p class="bad">${esc(v.failed_step)}: ${esc(v.error)}</p>`:''}</div>
+  <div><label class="tag">Topic</label><input id="f_topic" style="width:100%" value="${esc(v.topic)}">
+   <label class="tag">Title</label><input id="f_title" style="width:100%" value="${esc(v.title)}">
+   <label class="tag">Description</label><textarea id="f_desc" rows="3">${esc(v.description)}</textarea>
+   <label class="tag">Publish at (UTC ISO)</label><input id="f_slot" style="width:100%" value="${esc(v.slot_at)}">
+   <p><button class="btn s" onclick="saveMeta(${id})">Save details</button></p>
+   ${sc.length?`<b>Narration</b> <span class="tag">editing and saving sends it back to voice + render</span>${sc.map((s,i)=>`<div class="scene"><span>${i+1}</span><textarea class="nar" rows="2">${esc(s.narration)}</textarea></div>`).join('')}
+   <p><button class="btn s" onclick="saveNar(${id})">Save narration &amp; re-render</button></p>`:''}
+   <b>Log</b><pre>${esc(v.log)}</pre></div>`;
+  if(!dlg.open)dlg.showModal();
+}
+async function saveMeta(id){await api('/api/videos/'+id,'PATCH',{topic:f_topic.value,title:f_title.value,description:f_desc.value,slot_at:f_slot.value||null});load()}
+async function saveNar(id){await api('/api/videos/'+id,'PATCH',{narration:[...document.querySelectorAll('.nar')].map(t=>t.value)});await api(`/api/videos/${id}/run`,'POST');load()}
+load();setInterval(()=>{if(!(dlg.open&&document.activeElement&&dlg.contains(document.activeElement)&&['TEXTAREA','INPUT'].includes(document.activeElement.tagName)))load()},5000);
+</script>
+</body>
+</html>

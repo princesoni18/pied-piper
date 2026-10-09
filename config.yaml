@@ -1,0 +1,92 @@
+# StoryForge settings. Secrets (API keys) go in .env, not here.
+
+channel:
+  name: "My Story Channel"
+  language: "en"
+  timezone: "Asia/Kolkata"        # slot times below are in this timezone
+
+# Weekly plan: 15 Shorts + 6 long videos.
+# Each entry is "weekday HH:MM" (mon..sun). Edit freely.
+schedule:
+  short:
+    - "mon 09:00"
+    - "mon 18:00"
+    - "tue 09:00"
+    - "tue 18:00"
+    - "wed 09:00"
+    - "wed 18:00"
+    - "thu 09:00"
+    - "thu 18:00"
+    - "fri 09:00"
+    - "fri 18:00"
+    - "sat 09:00"
+    - "sat 13:00"
+    - "sat 18:00"
+    - "sun 09:00"
+    - "sun 18:00"
+  long:
+    - "mon 15:00"
+    - "tue 15:00"
+    - "wed 15:00"
+    - "thu 15:00"
+    - "fri 15:00"
+    - "sat 15:00"
+
+output:
+  mode: "local"                   # local = save finished videos to a folder, you upload by hand | youtube
+  folder: "exports"               # relative to the project, or an absolute path
+
+autopilot:
+  enabled: true                   # background worker fills upcoming slots
+  plan_days_ahead: 7              # how far ahead to fill slots
+  review_before_upload: true      # rendered videos wait for "Approve" in the dashboard
+  tick_minutes: 10
+  max_uploads_per_day: 6          # YouTube API quota: ~1600 units per upload, 10k/day
+
+# Content mix. Weights decide how often each niche is picked.
+niches:
+  true_story:
+    weight: 6
+    label: "True story"
+    brief: >
+      Real, verifiable, lesser-known true stories: survival, mysteries, heists,
+      strange history, unbelievable coincidences, incredible people. Facts must be
+      accurate; do not invent names, dates or numbers.
+  what_if:
+    weight: 4
+    label: "What if"
+    brief: >
+      Science-grounded hypothetical scenarios ("What if the Moon disappeared?",
+      "What if you fell into a black hole?"), told as a vivid, escalating
+      timeline with real physics and biology.
+
+llm:
+  provider: "gemini"              # gemini | offline (offline = template text, for testing)
+  model: "gemini-flash-latest"   # alias, so it never goes stale
+
+tts:
+  provider: "edge"                # edge | dummy (dummy = silent audio, for testing)
+  voice_short: "en-US-AndrewMultilingualNeural"
+  voice_long: "en-US-ChristopherNeural"
+  rate_short: "+12%"              # Shorts are punchier
+  rate_long: "+3%"
+
+visuals:
+  image_provider: "pollinations"  # pollinations | gemini | pexels | none
+  short_layout: "split"           # split = AI image top / gameplay bottom; gameplay = full-screen gameplay
+  long_layout: "images"           # images = Ken Burns AI images; gameplay = full-screen gameplay
+  music_volume: 0.10              # background music level (0 disables)
+
+captions:
+  font: "Montserrat ExtraBold"    # put the .ttf in assets/fonts; falls back to any bold system font
+  short_size: 92
+  long_size: 64
+  highlight_color: "&H0000F0FF"   # ASS BGR: yellow
+  words_per_chunk_short: 3
+  words_per_chunk_long: 6
+
+youtube:
+  category_id: "24"               # 24 = Entertainment, 27 = Education
+  contains_synthetic_media: true  # required disclosure for realistic AI content
+  made_for_kids: false
+  default_tags: ["true story", "what if", "storytime"]

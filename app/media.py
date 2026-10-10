@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from functools import lru_cache
 from pathlib import Path
@@ -33,8 +34,11 @@ def has_audio(path: Path) -> bool:
 @lru_cache(maxsize=8)
 def font_file(preferred: str) -> tuple[str, Path | None]:
     """Return (family name for ASS, file path for Pillow). Prefers assets/fonts."""
-    for f in sorted(FONTS_DIR.glob("*.[ot]tf")):
-        return _family(f) or preferred, f
+    files = sorted(FONTS_DIR.glob("*.[ot]tf"))
+    key = re.sub(r"[^a-z0-9]", "", preferred.lower())
+    files.sort(key=lambda f: key not in re.sub(r"[^a-z0-9]", "", f.stem.lower()))
+    if files:
+        return _family(files[0]) or preferred, files[0]
     try:
         out = run(["fc-match", "-f", "%{family[0]}|%{file}", f"{preferred}:bold"])
         fam, path = out.split("|", 1)
@@ -44,6 +48,13 @@ def font_file(preferred: str) -> tuple[str, Path | None]:
 
 
 def _family(path: Path) -> str | None:
+    try:
+        from fontTools.ttLib import TTFont
+
+        names = TTFont(str(path))["name"]
+        return (names.getDebugName(1) or "").strip() or None
+    except Exception:
+        pass
     try:
         return run(["fc-scan", "--format", "%{family[0]}", str(path)]).strip() or None
     except Exception:

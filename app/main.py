@@ -262,6 +262,40 @@ def put_config(body: PlainConfig):
     return {"ok": True}
 
 
+@app.get("/api/voices")
+def voices():
+    """English Edge TTS voices for the dashboard picker."""
+    import asyncio
+
+    import edge_tts
+
+    vs = asyncio.run(edge_tts.list_voices())
+    return [{"name": v["ShortName"], "gender": v["Gender"], "locale": v["Locale"]}
+            for v in vs if v["Locale"].startswith("en-")]
+
+
+@app.get("/api/voices/preview")
+def voice_preview(voice: str, rate: str = "+0%"):
+    import asyncio
+
+    import edge_tts
+
+    async def go():
+        data = b""
+        com = edge_tts.Communicate("One hundred feet beneath the Atlantic, a diver felt a hand grab his wrist.", voice, rate=rate)
+        async for ch in com.stream():
+            if ch["type"] == "audio":
+                data += ch["data"]
+        return data
+
+    try:
+        data = asyncio.run(go())
+    except Exception as e:
+        raise HTTPException(400, f"preview failed: {e}")
+    from fastapi.responses import Response
+    return Response(data, media_type="audio/mpeg")
+
+
 @app.get("/api/footage")
 def footage():
     return [{"name": str(p.relative_to(GAMEPLAY_DIR)), "mb": round(p.stat().st_size / 1e6, 1)}

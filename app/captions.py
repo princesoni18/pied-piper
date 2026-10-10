@@ -51,7 +51,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,{family},{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,-1,0,0,0,100,100,1,0,1,{max(4, size // 14)},3,5,60,60,0,1
+Style: Cap,{family},{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,2,0,1,{max(6, size // 9)},4,5,60,60,0,1
 Style: Hook,{family},{int(size * 0.8)},&H00FFFFFF,&H00FFFFFF,&H00000000,&HCC000000,-1,0,0,0,100,100,0,0,3,18,0,8,70,70,{int(height * 0.08)},1
 
 [Events]
@@ -72,7 +72,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             for j, other in enumerate(ch):
                 txt = _esc(other["w"].upper() if upper else other["w"])
                 if j == wi:
-                    parts.append(r"{\c" + hi + r"&\fscx112\fscy112}" + txt + r"{\c&H00FFFFFF&\fscx100\fscy100}")
+                    # Active word: highlight colour and a quick overshoot "pop".
+                    pop = r"\fscx70\fscy70\t(0,70,\fscx125\fscy125)\t(70,140,\fscx108\fscy108)"
+                    parts.append(r"{\c" + hi + r"&" + pop + "}" + txt + r"{\c&H00FFFFFF&\fscx100\fscy100}")
                 else:
                     parts.append(txt)
             # Pop-in only when the chunk first appears.

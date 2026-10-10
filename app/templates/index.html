@@ -144,8 +144,20 @@ async function footage(){
 async function settings(){
   const c=await api('/api/config');
   $('#main').innerHTML=`<p class="mut">config.yaml: weekly slots, niches, voices, layouts, captions. Saved changes apply on the next tick.</p>
+  <div class="bar" style="margin-bottom:10px"><b>Narrator voice</b>
+   <select id="vsel" style="max-width:260px"></select>
+   <button class="btn s g" onclick="vprev()">Preview</button>
+   <button class="btn s" onclick="vset('short')">Use for Shorts</button>
+   <button class="btn s" onclick="vset('long')">Use for long videos</button></div>
   <textarea id="cfg" rows="30">${esc(c.yaml)}</textarea><div class="bar" style="margin-top:10px"><button class="btn" onclick="api('/api/config','PUT',{yaml:cfg.value}).then(()=>alert('Saved'))">Save</button></div>`;
+  loadVoices();
 }
+async function loadVoices(){
+  const vs=await api('/api/voices');
+  vsel.innerHTML=vs.map(v=>`<option value="${v.name}">${v.name.replace(/^en-/,'')} (${v.gender[0]})</option>`).join('');
+}
+function vprev(){new Audio('/api/voices/preview?voice='+encodeURIComponent(vsel.value)).play()}
+function vset(k){cfg.value=cfg.value.replace(new RegExp('(voice_'+k+':\s*)"[^"]*"'),'$1"'+vsel.value+'"')}
 async function showVideo(id,keep){
   openId=id;const v=await api('/api/videos/'+id);const sc=v.script?.scenes||[];
   if(keep&&dlg.open&&document.activeElement&&dlg.contains(document.activeElement)&&['TEXTAREA','INPUT'].includes(document.activeElement.tagName))return;

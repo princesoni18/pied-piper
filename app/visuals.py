@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 from .config import GAMEPLAY_DIR, MUSIC_DIR, cfg, secret
 from .media import ffprobe_duration, font_file
 
-STYLE_SUFFIX = ", cinematic film still, dramatic lighting, rich detail, 35mm, no text, no watermark"
+STYLE_SUFFIX = ", vertical 9:16, sharp focus, highly detailed, no text, no watermark"
 VIDEO_EXT = {".mp4", ".mov", ".mkv", ".webm"}
 AUDIO_EXT = {".mp3", ".wav", ".m4a", ".ogg"}
 
@@ -33,26 +33,32 @@ def fetch_images(scenes: list[dict], out_dir: Path, width: int, height: int, see
         try:
             if provider == "pollinations":
                 ok = _pollinations(prompt + STYLE_SUFFIX, dest, width, height, seed + i)
+            elif provider == "vertex":
+                ok = _gemini(prompt + STYLE_SUFFIX, dest, width, height, vertex=True)
+            elif provider == "huggingface":
+                ok = _huggingface(prompt + STYLE_SUFFIX, dest, width, height, seed + i)
             elif provider == "gemini":
                 ok = _gemini(prompt + STYLE_SUFFIX, dest, width, height)
             elif provider == "pexels":
                 ok = _pexels(prompt, dest, width > height)
         except Exception:
             ok = False
-        if not ok and provider == "pollinations":
-            # Pollinations is rate-limited and flaky; fall back to Gemini image gen.
+        if not ok and provider in ("vertex", "huggingface", "gemini"):
+            # Keyed/limited providers fail on quota; Pollinations needs no key.
             try:
-                ok = _gemini(prompt + STYLE_SUFFIX, dest, width, height)
+                ok = _pollinations(prompt + STYLE_SUFFIX, dest, width, height, seed + i)
             except Exception:
                 ok = False
         result.append(dest if ok else None)
     return result
 
 
-def _save_cover(data: bytes, dest: Path, width: int, height: int) -> bool:
+def _save_cover(data: bytes, dest: Path, width: int, height: int, watermark: bool = False) -> bool:
     from io import BytesIO
 
     img = Image.open(BytesIO(data)).convert("RGB")
+    if watermark:  # Pollinations stamps a logo in the bottom strip
+        img = img.crop((0, 0, img.width, img.height - max(1, round(img.height * 0.05))))
     img = _cover(img, width, height)
     img.save(dest, quality=92)
     return True
@@ -67,23 +73,47 @@ def _cover(img: Image.Image, w: int, h: int) -> Image.Image:
 
 
 def _pollinations(prompt: str, dest: Path, w: int, h: int, seed: int) -> bool:
-    url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt)
-    params = {"width": w, "height": h, "seed": seed, "nologo": "true", "model": "flux"}
+    key = secret("POLLINATIONS_API_KEY")
+    if key:  # free key from https://enter.pollinations.ai: real models, no watermark
+        url = "https://gen.pollinations.ai/image/" + urllib.parse.quote(prompt)
+        params = {"width": w, "height": h, "seed": seed, "nologo": "true",
+                  "model": cfg()["visuals"].get("pollinations_model", "zimage")}
+        headers = {"Authorization": f"Bearer {key}"}
+    else:
+        url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt)
+        params = {"width": w, "height": h, "seed": seed, "nologo": "true", "model": "flux"}
+        headers = {}
     for attempt in range(4):
         try:
-            r = requests.get(url, params=params, timeout=120)
+            r = requests.get(url, params=params, headers=headers, timeout=120)
             if r.ok and r.headers.get("content-type", "").startswith("image"):
-                return _save_cover(r.content, dest, w, h)
+                return _save_cover(r.content, dest, w, h, watermark=not key)
         except requests.RequestException:
             pass
         time.sleep(8 * (attempt + 1))
     return False
 
 
-def _gemini(prompt: str, dest: Path, w: int, h: int) -> bool:
+def _huggingface(prompt: str, dest: Path, w: int, h: int, seed: int) -> bool:
+    """FLUX.1-schnell via the free Hugging Face Inference API (needs HF_TOKEN)."""
+    token = secret("HF_TOKEN")
+    if not token:
+        return False
+    model = cfg()["visuals"].get("hf_model", "black-forest-labs/FLUX.1-schnell")
+    ow, oh = (768, 1344) if h > w else (1344, 768) if w > h else (1024, 1024)
+    r = requests.post(f"https://router.huggingface.co/hf-inference/models/{model}",
+                      headers={"Authorization": f"Bearer {token}"},
+                      json={"inputs": prompt, "parameters": {"width": ow, "height": oh, "seed": seed}}, timeout=180)
+    if r.ok and r.headers.get("content-type", "").startswith("image"):
+        return _save_cover(r.content, dest, w, h)
+    return False
+
+
+def _gemini(prompt: str, dest: Path, w: int, h: int, vertex: bool = False) -> bool:
     from google import genai
 
-    client = genai.Client(api_key=secret("GEMINI_API_KEY"))
+    client = (genai.Client(vertexai=True, api_key=secret("VERTEX_API_KEY")) if vertex
+              else genai.Client(api_key=secret("GEMINI_API_KEY")))
     model = cfg()["visuals"].get("gemini_image_model", "gemini-2.5-flash-image")
     aspect = "9:16" if h > w else "16:9" if w > h else "1:1"
     resp = client.models.generate_content(model=model, contents=f"{prompt}. Aspect ratio {aspect}.")

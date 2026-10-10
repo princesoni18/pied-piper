@@ -22,8 +22,8 @@ and "what if" scenarios. Your scripts are built for retention:
 - True stories must be factually accurate. If unsure about a detail, leave it out.
 """
 
-SHORT_SPEC = """FORMAT: YouTube Short, 45-58 seconds spoken (130-160 words total).
-- 6-9 scenes, each 1-2 sentences.
+SHORT_SPEC = """FORMAT: YouTube Short, 30-40 seconds spoken (80-105 words total).
+- 5-6 scenes, each 1-2 sentences.
 - End with a line that loops back into the first sentence so the replay feels seamless,
   or a one-line twist. No "follow for more".
 """
@@ -42,10 +42,17 @@ JSON_SPEC = """Return ONLY JSON with this shape:
   "thumbnail_text": "2-4 punchy words for the thumbnail",
   "description": "2-3 sentence description followed by 3-5 hashtags",
   "tags": ["8-15 search tags"],
+  "visual_style": "ONE line art direction shared by every image of this video: medium, palette, era, mood (e.g. 'gritty 35mm documentary photograph, desaturated teal and amber, 2013 West Africa offshore')",
+  "characters": "ONE line fixed visual description of the main person (age, build, clothing, distinguishing features) so they look identical in every scene that shows them; empty if none",
   "scenes": [
-    {"narration": "spoken text", "image_prompt": "vivid cinematic image prompt for this moment, no text in image, include style: cinematic, dramatic lighting, detailed"}
+    {"narration": "spoken text", "shows_character": true, "image_prompt": "IMAGE_RULES"}
   ]
 }
+IMAGE_RULES: each image_prompt is 30-50 words and describes ONE frozen moment of that scene's narration:
+ concrete subject and action first, then setting, camera angle/lens (e.g. low angle, close-up, wide establishing),
+ lighting, and a single focal point. Vertical 9:16 composition with the subject centred. Set shows_character false for scenes with no person (establishing shots, objects, vehicles). Otherwise name the person exactly as in
+ "characters". Photoreal, no text, no captions, no logos, no split panels, no collage. Never describe
+ abstract concepts; show a visible object or person instead.
 """
 
 
@@ -129,8 +136,20 @@ def normalize_script(data: dict, kind: str) -> dict:
         "thumbnail_text": data.get("thumbnail_text", "").strip(),
         "description": desc,
         "tags": tags,
-        "scenes": [{"narration": s["narration"].strip(), "image_prompt": s.get("image_prompt", "").strip()} for s in scenes],
+        "scenes": [{"narration": s["narration"].strip(), "image_prompt": _image_prompt(data, s)} for s in scenes],
     }
+
+
+def _image_prompt(data: dict, scene: dict) -> str:
+    """Shared style prefix + fixed characters + this scene's moment, for visual coherence."""
+    v = cfg().get("visuals", {})
+    parts = [
+        v.get("style_prefix", ""),
+        (data.get("visual_style") or "").strip(),
+        (data.get("characters") or "").strip() if scene.get("shows_character", True) else "",
+        (scene.get("image_prompt") or scene.get("narration") or "").strip(),
+    ]
+    return ". ".join(p.strip(" .") for p in parts if p and p.strip())
 
 
 def _offline_script(kind: str, topic: str) -> dict:

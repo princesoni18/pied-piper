@@ -15,7 +15,7 @@ from pathlib import Path
 
 from . import visuals
 from .captions import build_ass
-from .config import cfg
+from .config import FONTS_DIR, cfg
 from .media import ff_escape_path, run
 
 FPS = 30
@@ -99,7 +99,7 @@ def render(kind: str, words_path: Path, audio: Path, images: list[Path | None], 
         src = "[stk]"
     else:
         src = "[0:v]"
-    fc.append(f"{src}ass='{ff_escape_path(ass)}'[v]")
+    fc.append(f"{src}ass='{ff_escape_path(ass)}':fontsdir='{ff_escape_path(FONTS_DIR)}'[v]")
     if music and vol > 0:
         fc.append(f"[{a_idx}:a]asplit=2[nar][sc]")
         fc.append(f"[{a_idx + 1}:a]volume={vol * 3:.3f},aformat=channel_layouts=stereo:sample_rates=48000[mus]")

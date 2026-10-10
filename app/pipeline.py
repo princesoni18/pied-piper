@@ -47,8 +47,8 @@ def step_render(vid: int) -> None:
         db.log(vid, f"images: {got}/{len(scenes)}")
     else:
         images = [None] * len(scenes)
-    hook = scenes[0]["narration"] if v["kind"] == "short" else None
-    out = render.render(v["kind"], Path(v["words_path"]), Path(v["audio_path"]), images, _hook_text(hook), d)
+    hook = (v["script"].get("thumbnail_text") or "").strip() if v["kind"] == "short" else None
+    out = render.render(v["kind"], Path(v["words_path"]), Path(v["audio_path"]), images, hook or None, d)
     first = next((i for i in images if i), None)
     thumb = visuals.make_thumbnail(first, v["script"].get("thumbnail_text") or v["title"], d / "thumb.jpg")
     nxt = "rendered" if cfg()["autopilot"]["review_before_upload"] else "approved"

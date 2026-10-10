@@ -296,6 +296,30 @@ def voice_preview(voice: str, rate: str = "+0%"):
     return Response(data, media_type="audio/mpeg")
 
 
+@app.get("/api/captions/preview")
+def captions_preview():
+    """Render a 5 s sample of the current caption style and title card."""
+    import hashlib
+    import json as _json
+
+    from .captions import build_ass
+    from .config import DATA, FONTS_DIR
+    from .media import ff_escape_path, run
+
+    key = hashlib.md5(_json.dumps(cfg()["captions"], sort_keys=True).encode()).hexdigest()[:10]
+    d = DATA / "preview"
+    d.mkdir(parents=True, exist_ok=True)
+    out = d / f"captions_{key}.mp4"
+    if not out.exists():
+        text = "This is how your story captions look on screen".split()
+        words = [{"w": w, "start": 0.4 + i * 0.42, "end": 0.4 + i * 0.42 + 0.38} for i, w in enumerate(text)]
+        ass = build_ass("short", words, d / "sample.ass", 1080, 1920, 1000, hook="Trapped 60 hours")
+        vf = f"ass='{ff_escape_path(ass)}':fontsdir='{ff_escape_path(FONTS_DIR)}',scale=540:960"
+        run(["ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=0x1a2a3a:s=1080x1920:d=5",
+             "-vf", vf, "-r", "30", "-pix_fmt", "yuv420p", "-c:v", "libx264", "-preset", "veryfast", str(out)])
+    return FileResponse(out, media_type="video/mp4")
+
+
 @app.get("/api/footage")
 def footage():
     return [{"name": str(p.relative_to(GAMEPLAY_DIR)), "mb": round(p.stat().st_size / 1e6, 1)}

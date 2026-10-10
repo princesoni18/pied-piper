@@ -52,7 +52,7 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Cap,{family},{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,2,0,1,{max(6, size // 9)},4,5,60,60,0,1
-Style: Hook,{family},{int(size * 0.8)},&H00FFFFFF,&H00FFFFFF,&H00000000,&HCC000000,-1,0,0,0,100,100,0,0,3,18,0,8,70,70,{int(height * 0.08)},1
+Style: Hook,{family},{int(size * 0.9)},&H0000F0FF,&H0000F0FF,&H00000000,&H00000000,0,0,0,0,100,100,3,0,1,{max(6, size // 10)},3,8,60,60,{int(height * 0.085)},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -82,7 +82,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             lines.append(f"Dialogue: 1,{_ts(start)},{_ts(end)},Cap,,0,0,0,,{text}")
 
     if hook:
-        lines.append(f"Dialogue: 2,{_ts(0)},{_ts(2.8)},Hook,,0,0,0,,{{\\fad(150,250)}}{_esc(hook.upper() if upper else hook)}")
+        # Title card: short, outlined, near the top; pops in then fades. No box over the picture.
+        pop = r"\fscx60\fscy60\t(0,160,\fscx110\fscy110)\t(160,260,\fscx100\fscy100)\fad(0,300)"
+        lines.append(f"Dialogue: 2,{_ts(0.15)},{_ts(2.6)},Hook,,0,0,0,,{{{pop}}}{_esc(hook.upper() if upper else hook)}")
 
     out.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
     return out

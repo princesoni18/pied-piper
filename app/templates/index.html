@@ -149,6 +149,9 @@ async function settings(){
    <button class="btn s g" onclick="vprev()">Preview</button>
    <button class="btn s" onclick="vset('short')">Use for Shorts</button>
    <button class="btn s" onclick="vset('long')">Use for long videos</button></div>
+  <div class="bar" style="margin-bottom:10px"><b>Caption sample</b>
+   <button class="btn s g" onclick="cprev()">Show caption + title animation</button></div>
+  <video id="cvid" controls loop muted style="display:none;max-height:420px;margin-bottom:10px"></video>
   <textarea id="cfg" rows="30">${esc(c.yaml)}</textarea><div class="bar" style="margin-top:10px"><button class="btn" onclick="api('/api/config','PUT',{yaml:cfg.value}).then(()=>alert('Saved'))">Save</button></div>`;
   loadVoices();
 }
@@ -156,6 +159,7 @@ async function loadVoices(){
   const vs=await api('/api/voices');
   vsel.innerHTML=vs.map(v=>`<option value="${v.name}">${v.name.replace(/^en-/,'')} (${v.gender[0]})</option>`).join('');
 }
+function cprev(){cvid.style.display='block';cvid.src='/api/captions/preview?t='+Date.now();cvid.play()}
 function vprev(){new Audio('/api/voices/preview?voice='+encodeURIComponent(vsel.value)).play()}
 function vset(k){cfg.value=cfg.value.replace(new RegExp('(voice_'+k+':\s*)"[^"]*"'),'$1"'+vsel.value+'"')}
 async function showVideo(id,keep){

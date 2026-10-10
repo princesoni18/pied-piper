@@ -15,7 +15,7 @@ from pathlib import Path
 from .config import cfg
 from .media import ffprobe_duration, run
 
-PAUSE = 0.28  # seconds of silence between scenes
+PAUSE = 0.16  # fixed silence between scenes (TTS leading/trailing silence is trimmed first)
 
 
 def synthesize(kind: str, scenes: list[dict], out_dir: Path, voice: str | None = None) -> tuple[Path, Path]:
@@ -38,6 +38,7 @@ def synthesize(kind: str, scenes: list[dict], out_dir: Path, voice: str | None =
             seg_words = _dummy(text, seg)
         else:
             seg_words = _edge(text, voice, rate, seg)
+        seg_words = _trim_segment(seg, seg_words)
         dur = ffprobe_duration(seg)
         seg_words = _align_tokens(text, seg_words, dur)
         for w in seg_words:
@@ -86,6 +87,18 @@ def _edge(text: str, voice: str, rate: str, out: Path) -> list[dict]:
         except Exception as e:
             last = e
     raise RuntimeError(f"edge-tts failed: {last}")
+
+
+def _trim_segment(seg: Path, words: list[dict]) -> list[dict]:
+    """Cut Edge's uneven leading/trailing silence using the word boundaries, so gaps between scenes are uniform."""
+    if not words:
+        return words
+    start = max(0.0, words[0]["start"] - 0.04)
+    end = words[-1]["end"] + 0.10
+    tmp = seg.with_name(seg.stem + "_t.wav")
+    run(["ffmpeg", "-y", "-i", str(seg), "-ss", f"{start:.3f}", "-to", f"{end:.3f}", "-ar", "24000", "-ac", "1", str(tmp)])
+    tmp.replace(seg)
+    return [{**w, "start": max(0.0, w["start"] - start), "end": max(0.0, w["end"] - start)} for w in words]
 
 
 def _dummy(text: str, out: Path) -> list[dict]:

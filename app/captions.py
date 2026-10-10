@@ -72,9 +72,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             for j, other in enumerate(ch):
                 txt = _esc(other["w"].upper() if upper else other["w"])
                 if j == wi:
-                    # Active word: highlight colour and a quick overshoot "pop".
-                    pop = r"\fscx70\fscy70\t(0,70,\fscx125\fscy125)\t(70,140,\fscx108\fscy108)"
-                    parts.append(r"{\c" + hi + r"&" + pop + "}" + txt + r"{\c&H00FFFFFF&\fscx100\fscy100}")
+                    # Colour only: scaling one word changes line width and makes the whole line jitter.
+                    parts.append(r"{\c" + hi + r"&}" + txt + r"{\c&H00FFFFFF&}")
                 else:
                     parts.append(txt)
             # Pop-in only when the chunk first appears.

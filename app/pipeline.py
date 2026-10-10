@@ -29,7 +29,8 @@ def step_script(vid: int) -> None:
 
 def step_voice(vid: int) -> None:
     v = db.get(vid)
-    audio, words = tts.synthesize(v["kind"], v["script"]["scenes"], work_dir(vid))
+    audio, words = tts.synthesize(v["kind"], v["script"]["scenes"], work_dir(vid),
+                                  voice=cfg()["niches"].get(v["niche"], {}).get("voice"))
     db.update(vid, audio_path=str(audio), words_path=str(words), status="voiced")
     db.log(vid, "narration ready")
 

@@ -18,9 +18,9 @@ from .media import ffprobe_duration, run
 PAUSE = 0.28  # seconds of silence between scenes
 
 
-def synthesize(kind: str, scenes: list[dict], out_dir: Path) -> tuple[Path, Path]:
+def synthesize(kind: str, scenes: list[dict], out_dir: Path, voice: str | None = None) -> tuple[Path, Path]:
     t = cfg()["tts"]
-    voice = t["voice_short"] if kind == "short" else t["voice_long"]
+    voice = voice or (t["voice_short"] if kind == "short" else t["voice_long"])
     rate = t["rate_short"] if kind == "short" else t["rate_long"]
     out_dir.mkdir(parents=True, exist_ok=True)
 

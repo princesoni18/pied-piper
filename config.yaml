@@ -59,6 +59,14 @@ niches:
       Science-grounded hypothetical scenarios ("What if the Moon disappeared?",
       "What if you fell into a black hole?"), told as a vivid, escalating
       timeline with real physics and biology.
+  funny_story:
+    weight: 0                     # manual only; raise to include in autopilot
+    label: "Funny story"
+    voice: "en-US-GuyNeural"      # per-niche voice override
+    brief: >
+      Short, true-feeling comedic stories with a deadpan, over-the-top narrator:
+      absurd misunderstandings, escalating bad decisions, a punchline ending.
+      Keep it light and original; jokes land on a specific concrete detail.
 
 llm:
   provider: "gemini"              # gemini | offline (offline = template text, for testing)

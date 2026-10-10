@@ -19,15 +19,18 @@ AUDIO_EXT = {".mp3", ".wav", ".m4a", ".ogg"}
 
 
 def fetch_images(scenes: list[dict], out_dir: Path, width: int, height: int, seed: int) -> list[Path | None]:
-    """One image per scene; None where generation failed (renderer reuses neighbours)."""
+    """One image per scene, generated in parallel; None where generation failed (renderer reuses neighbours)."""
+    from concurrent.futures import ThreadPoolExecutor
+
     provider = cfg()["visuals"]["image_provider"]
+    workers = int(cfg()["visuals"].get("image_workers", 4))
     out_dir.mkdir(parents=True, exist_ok=True)
-    result: list[Path | None] = []
-    for i, s in enumerate(scenes):
+
+    def one(i: int) -> Path | None:
+        s = scenes[i]
         dest = out_dir / f"img_{i:03d}.jpg"
         if dest.exists() and dest.stat().st_size > 5000:
-            result.append(dest)
-            continue
+            return dest
         prompt = (s.get("image_prompt") or s["narration"])[:600]
         ok = False
         try:
@@ -49,8 +52,10 @@ def fetch_images(scenes: list[dict], out_dir: Path, width: int, height: int, see
                 ok = _pollinations(prompt + STYLE_SUFFIX, dest, width, height, seed + i)
             except Exception:
                 ok = False
-        result.append(dest if ok else None)
-    return result
+        return dest if ok else None
+
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
+        return list(ex.map(one, range(len(scenes))))
 
 
 def _save_cover(data: bytes, dest: Path, width: int, height: int, watermark: bool = False) -> bool:

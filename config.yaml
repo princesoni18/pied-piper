@@ -74,6 +74,7 @@ tts:
 visuals:
   style_prefix: "Cinematic photoreal film still, 35mm anamorphic, volumetric lighting, shallow depth of field, rich contrast"  # prepended to every scene prompt
   gemini_image_model: "gemini-3.1-flash-image"   # used by vertex and gemini providers
+  image_workers: 4                # images generated in parallel
   image_provider: "vertex"  # vertex | pollinations | gemini | huggingface | pexels | none
   short_layout: "split"           # split = AI image top / gameplay bottom; gameplay = full-screen gameplay
   long_layout: "images"           # images = Ken Burns AI images; gameplay = full-screen gameplay
